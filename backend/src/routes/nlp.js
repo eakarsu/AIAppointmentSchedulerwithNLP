@@ -5,6 +5,7 @@ import {
   parseText,
   getSuggestions,
   deleteNlpLog,
+  bulkDeleteNlpLogs,
   chat,
   getInsights,
   matchContact,
@@ -15,6 +16,7 @@ import {
   getAIStatus
 } from '../controllers/nlpController.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { validate } from '../middleware/validation.js';
 
 const router = Router();
 
@@ -27,11 +29,12 @@ router.get('/status', getAIStatus);
 router.get('/logs', getAllNlpLogs);
 router.get('/logs/:id', getNlpLogById);
 router.delete('/logs/:id', deleteNlpLog);
+router.post('/logs/bulk-delete', bulkDeleteNlpLogs);
 
 // Core AI Features
-router.post('/parse', parseText);
+router.post('/parse', validate('nlpParse'), parseText);
 router.post('/suggestions', getSuggestions);
-router.post('/chat', chat);
+router.post('/chat', validate('nlpChat'), chat);
 router.get('/insights', getInsights);
 
 // Smart AI Features

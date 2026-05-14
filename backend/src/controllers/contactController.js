@@ -108,3 +108,37 @@ export async function bulkDeleteContacts(req, res) {
     res.status(500).json({ error: 'Server error' });
   }
 }
+
+// Contact Relationship Intelligence: contacts not met with in the last N days
+export async function getOverdueContacts(req, res) {
+  const days = Math.min(365, Math.max(1, parseInt(req.query.days) || 30));
+  try {
+    const result = await pool.query(
+      `SELECT
+         c.id, c.name, c.email, c.company,
+         COUNT(a.id) as total_meetings,
+         MAX(a.start_time) as last_meeting_at,
+         EXTRACT(DAY FROM NOW() - MAX(a.start_time))::int as days_since_last_meeting
+       FROM contacts c
+       LEFT JOIN appointments a ON a.contact_id = c.id AND a.user_id = c.user_id
+       WHERE c.user_id = $1
+       GROUP BY c.id, c.name, c.email, c.company
+       HAVING MAX(a.start_time) IS NULL OR MAX(a.start_time) < NOW() - INTERVAL '1 day' * $2
+       ORDER BY last_meeting_at ASC NULLS FIRST
+       LIMIT 50`,
+      [req.user.id, days]
+    );
+    res.json({
+      days_threshold: days,
+      count: result.rows.length,
+      contacts: result.rows.map(c => ({
+        ...c,
+        days_since_last_meeting: c.days_since_last_meeting ?? null,
+        status: c.last_meeting_at ? 'overdue' : 'never_met',
+      })),
+    });
+  } catch (error) {
+    console.error('getOverdueContacts error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+}

@@ -1,5 +1,6 @@
 import pool from '../config/database.js';
 import { getPaginationParams, formatPaginatedResponse } from '../utils/pagination.js';
+import { sendEmailReminder, sendSMSReminder } from '../services/notificationService.js';
 
 export async function getAllReminders(req, res) {
   try {
@@ -101,6 +102,63 @@ export async function deleteReminder(req, res) {
     res.json({ message: 'Reminder deleted successfully' });
   } catch (error) {
     console.error('Delete reminder error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// Process and send due reminders - called manually or by a cron job
+export async function sendDueReminders(req, res) {
+  try {
+    // Fetch reminders that are due (remind_at <= now) and not yet sent
+    const result = await pool.query(`
+      SELECT r.*, a.title, a.start_time, a.end_time, a.location, a.description,
+             c.name as contact_name, c.email as contact_email, c.phone as contact_phone,
+             u.email as user_email
+      FROM reminders r
+      JOIN appointments a ON r.appointment_id = a.id
+      JOIN users u ON a.user_id = u.id
+      LEFT JOIN contacts c ON a.contact_id = c.id
+      WHERE r.sent = FALSE AND r.remind_at <= NOW()
+      ORDER BY r.remind_at ASC
+      LIMIT 50
+    `);
+
+    const reminders = result.rows;
+    const results = [];
+
+    for (const reminder of reminders) {
+      const apt = {
+        id: reminder.appointment_id,
+        title: reminder.title,
+        start_time: reminder.start_time,
+        end_time: reminder.end_time,
+        location: reminder.location,
+        description: reminder.description,
+        contact_name: reminder.contact_name,
+        contact_email: reminder.contact_email,
+        user_email: reminder.user_email,
+      };
+
+      try {
+        if (reminder.type === 'email' || reminder.type === 'both') {
+          await sendEmailReminder(apt);
+        }
+        if ((reminder.type === 'sms' || reminder.type === 'both') && reminder.contact_phone) {
+          await sendSMSReminder(apt, reminder.contact_phone);
+        }
+
+        // Mark as sent
+        await pool.query('UPDATE reminders SET sent = TRUE WHERE id = $1', [reminder.id]);
+        results.push({ reminder_id: reminder.id, appointment_id: reminder.appointment_id, status: 'sent' });
+      } catch (sendErr) {
+        console.error(`[reminderController] Failed to send reminder ${reminder.id}:`, sendErr.message);
+        results.push({ reminder_id: reminder.id, appointment_id: reminder.appointment_id, status: 'failed', error: sendErr.message });
+      }
+    }
+
+    res.json({ processed: reminders.length, results });
+  } catch (error) {
+    console.error('Send due reminders error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 }

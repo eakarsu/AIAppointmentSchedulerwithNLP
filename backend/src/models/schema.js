@@ -222,6 +222,57 @@ export async function initializeDatabase() {
       )
     `);
 
+    // Create conflict_resolutions table for AI Conflict Resolver persistence
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS conflict_resolutions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        resolutions JSONB NOT NULL,
+        overall_strategy TEXT,
+        impact_summary JSONB,
+        preventive_measures JSONB,
+        ai_powered BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create ai_results table for auditing raw AI calls
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ai_results (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        feature VARCHAR(100) NOT NULL,
+        model_used VARCHAR(200),
+        prompt_summary TEXT,
+        raw_result JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create follow_up_drafts table for smart follow-up generator
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS follow_up_drafts (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        appointment_id INTEGER REFERENCES appointments(id) ON DELETE CASCADE,
+        draft_subject TEXT,
+        draft_body TEXT,
+        key_points JSONB,
+        next_steps JSONB,
+        sent BOOLEAN DEFAULT FALSE,
+        ai_powered BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Add tags column to appointments if it doesn't exist
+    await client.query(`
+      DO $$ BEGIN
+        ALTER TABLE appointments ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]';
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$;
+    `);
+
     // Add auth enhancement columns if they don't exist
     await client.query(`
       DO $$ BEGIN
@@ -247,6 +298,9 @@ export async function dropAllTables() {
 
   try {
     await client.query(`
+      DROP TABLE IF EXISTS follow_up_drafts CASCADE;
+      DROP TABLE IF EXISTS ai_results CASCADE;
+      DROP TABLE IF EXISTS conflict_resolutions CASCADE;
       DROP TABLE IF EXISTS resource_allocations CASCADE;
       DROP TABLE IF EXISTS resources CASCADE;
       DROP TABLE IF EXISTS reschedule_suggestions CASCADE;

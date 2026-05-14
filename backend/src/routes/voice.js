@@ -14,6 +14,7 @@ router.use(authenticateToken);
 router.get('/', getAllVoiceCommands);
 router.get('/:id', getVoiceCommandById);
 router.post('/process', processCommand);
+router.post('/command', processCommand); // alias for /process
 router.delete('/:id', deleteVoiceCommand);
 
 export default router;

@@ -1,6 +1,43 @@
 import pool from '../config/database.js';
 import { parseNaturalLanguage, convertDateDescription } from '../services/openrouter.js';
 import { getPaginationParams, formatPaginatedResponse } from '../utils/pagination.js';
+import { DateTime } from 'luxon';
+
+// Convert a local datetime string + timezone to UTC ISO string
+function toUTC(datetimeStr, timezone) {
+  if (!timezone || !datetimeStr) return datetimeStr;
+  try {
+    const dt = DateTime.fromISO(datetimeStr, { zone: timezone });
+    if (!dt.isValid) return datetimeStr;
+    return dt.toUTC().toISO();
+  } catch {
+    return datetimeStr;
+  }
+}
+
+// Convert a UTC datetime to a local datetime in a given timezone
+function fromUTC(utcDatetime, timezone) {
+  if (!timezone || !utcDatetime) return utcDatetime;
+  try {
+    return DateTime.fromJSDate(new Date(utcDatetime), { zone: 'UTC' }).setZone(timezone).toISO();
+  } catch {
+    return utcDatetime;
+  }
+}
+
+// Enrich appointment rows with local time fields if timezone is stored
+function enrichWithTimezone(rows, defaultTimezone) {
+  return rows.map(row => {
+    const tz = row.timezone || defaultTimezone;
+    if (!tz) return row;
+    return {
+      ...row,
+      start_time_local: fromUTC(row.start_time, tz),
+      end_time_local: fromUTC(row.end_time, tz),
+      timezone: tz,
+    };
+  });
+}
 
 export async function getAllAppointments(req, res) {
   try {
@@ -53,7 +90,8 @@ export async function getAppointmentById(req, res) {
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
-    res.json(result.rows[0]);
+    const enriched = enrichWithTimezone(result.rows, null);
+    res.json(enriched[0]);
   } catch (error) {
     console.error('Get appointment error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -61,21 +99,31 @@ export async function getAppointmentById(req, res) {
 }
 
 export async function createAppointment(req, res) {
-  const { title, description, location, start_time, end_time, contact_id, status } = req.body;
+  const { title, description, location, start_time, end_time, contact_id, status, timezone } = req.body;
 
   if (!title || !start_time || !end_time) {
     return res.status(400).json({ error: 'Title, start time, and end time are required' });
   }
 
   try {
+    // Ensure timezone column exists (idempotent)
+    await pool.query(`
+      ALTER TABLE appointments ADD COLUMN IF NOT EXISTS timezone VARCHAR(100)
+    `).catch(() => {});
+
+    // Convert to UTC for storage if timezone is provided
+    const startUTC = timezone ? toUTC(start_time, timezone) : start_time;
+    const endUTC = timezone ? toUTC(end_time, timezone) : end_time;
+
     const result = await pool.query(
-      `INSERT INTO appointments (user_id, title, description, location, start_time, end_time, contact_id, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO appointments (user_id, title, description, location, start_time, end_time, contact_id, status, timezone)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [req.user.id, title, description, location, start_time, end_time, contact_id || null, status || 'scheduled']
+      [req.user.id, title, description, location, startUTC, endUTC, contact_id || null, status || 'scheduled', timezone || null]
     );
 
-    res.status(201).json(result.rows[0]);
+    const enriched = enrichWithTimezone([result.rows[0]], timezone);
+    res.status(201).json(enriched[0]);
   } catch (error) {
     console.error('Create appointment error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -83,7 +131,7 @@ export async function createAppointment(req, res) {
 }
 
 export async function updateAppointment(req, res) {
-  const { title, description, location, start_time, end_time, contact_id, status } = req.body;
+  const { title, description, location, start_time, end_time, contact_id, status, timezone } = req.body;
 
   try {
     const existing = await pool.query(
@@ -95,6 +143,10 @@ export async function updateAppointment(req, res) {
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
+    const tz = timezone || existing.rows[0].timezone;
+    const startUTC = (start_time && tz) ? toUTC(start_time, tz) : start_time;
+    const endUTC = (end_time && tz) ? toUTC(end_time, tz) : end_time;
+
     const result = await pool.query(
       `UPDATE appointments
        SET title = COALESCE($1, title),
@@ -104,13 +156,15 @@ export async function updateAppointment(req, res) {
            end_time = COALESCE($5, end_time),
            contact_id = $6,
            status = COALESCE($7, status),
+           timezone = COALESCE($8, timezone),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $8 AND user_id = $9
+       WHERE id = $9 AND user_id = $10
        RETURNING *`,
-      [title, description, location, start_time, end_time, contact_id, status, req.params.id, req.user.id]
+      [title, description, location, startUTC, endUTC, contact_id, status, tz, req.params.id, req.user.id]
     );
 
-    res.json(result.rows[0]);
+    const enriched = enrichWithTimezone([result.rows[0]], tz);
+    res.json(enriched[0]);
   } catch (error) {
     console.error('Update appointment error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -276,6 +330,59 @@ export async function createFromNaturalLanguage(req, res) {
     });
   } catch (error) {
     console.error('Create from NLP error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+export async function exportAppointmentsCSV(req, res) {
+  try {
+    const result = await pool.query(
+      `SELECT a.start_time, a.end_time, a.title, c.name as client_name,
+              a.location, a.status, a.description, a.timezone
+       FROM appointments a
+       LEFT JOIN contacts c ON a.contact_id = c.id
+       WHERE a.user_id = $1
+       ORDER BY a.start_time ASC`,
+      [req.user.id]
+    );
+
+    const rows = result.rows;
+    const headers = ['date', 'time', 'type', 'client_name', 'duration', 'status', 'notes'];
+
+    const csvLines = [headers.join(',')];
+    rows.forEach(r => {
+      const start = new Date(r.start_time);
+      const end = new Date(r.end_time);
+      const durationMin = Math.round((end - start) / 60000);
+      const date = start.toISOString().split('T')[0];
+      const time = start.toTimeString().slice(0, 5);
+
+      const escape = (val) => {
+        if (val == null) return '';
+        const str = String(val);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      csvLines.push([
+        escape(date),
+        escape(time),
+        escape(r.title),
+        escape(r.client_name),
+        escape(durationMin),
+        escape(r.status),
+        escape(r.description),
+      ].join(','));
+    });
+
+    const csv = csvLines.join('\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="appointments.csv"');
+    res.send(csv);
+  } catch (error) {
+    console.error('CSV export error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 }

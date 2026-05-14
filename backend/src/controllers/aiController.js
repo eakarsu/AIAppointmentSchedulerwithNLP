@@ -400,13 +400,48 @@ export async function deleteResourceAllocation(req, res) {
 
 export async function resolveSchedulingConflicts(req, res) {
   const { conflicts } = req.body;
+  if (!conflicts || !Array.isArray(conflicts)) {
+    return res.status(400).json({ error: 'conflicts array is required' });
+  }
   try {
     const appointmentsResult = await pool.query(`SELECT * FROM appointments WHERE user_id = $1 AND start_time >= NOW() ORDER BY start_time`, [req.user.id]);
     const settingsResult = await pool.query('SELECT * FROM settings WHERE user_id = $1', [req.user.id]);
     const resolutions = await resolveConflicts(conflicts, appointmentsResult.rows, settingsResult.rows[0] || {});
-    res.json({ resolutions, ai_powered: isAIConfigured() });
+
+    // Persist resolution result for audit trail
+    const insertResult = await pool.query(
+      `INSERT INTO conflict_resolutions (user_id, resolutions, overall_strategy, impact_summary, preventive_measures, ai_powered)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [
+        req.user.id,
+        JSON.stringify(resolutions.resolutions || []),
+        resolutions.overall_strategy || null,
+        JSON.stringify(resolutions.impact_summary || null),
+        JSON.stringify(resolutions.preventive_measures || []),
+        isAIConfigured()
+      ]
+    );
+
+    res.json({ resolutions, saved: insertResult.rows[0], ai_powered: isAIConfigured() });
   } catch (error) {
     console.error('Resolve conflicts error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+export async function getAllConflictResolutions(req, res) {
+  try {
+    const { page, limit, offset } = (await import('../utils/pagination.js')).getPaginationParams(req.query);
+    const countResult = await pool.query('SELECT COUNT(*) FROM conflict_resolutions WHERE user_id = $1', [req.user.id]);
+    const total = parseInt(countResult.rows[0].count);
+    const result = await pool.query(
+      'SELECT * FROM conflict_resolutions WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
+      [req.user.id, limit, offset]
+    );
+    const { formatPaginatedResponse } = await import('../utils/pagination.js');
+    res.json(formatPaginatedResponse(result.rows, total, page, limit));
+  } catch (error) {
+    console.error('Get conflict resolutions error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 }

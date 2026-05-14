@@ -19,6 +19,8 @@ import NoShowPredictor from './pages/NoShowPredictor';
 import RescheduleSuggester from './pages/RescheduleSuggester';
 import ResourceAllocator from './pages/ResourceAllocator';
 import ConflictResolver from './pages/ConflictResolver';
+import AIExtras from './pages/AIExtras';
+import Search from './pages/Search';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -64,6 +66,8 @@ function App() {
                   <Route path="/ai/reschedule-suggester" element={<ErrorBoundary><RescheduleSuggester /></ErrorBoundary>} />
                   <Route path="/ai/resource-allocator" element={<ErrorBoundary><ResourceAllocator /></ErrorBoundary>} />
                   <Route path="/ai/conflict-resolver" element={<ErrorBoundary><ConflictResolver /></ErrorBoundary>} />
+                  <Route path="/ai/extras" element={<ErrorBoundary><AIExtras /></ErrorBoundary>} />
+                  <Route path="/search" element={<ErrorBoundary><Search /></ErrorBoundary>} />
                 </Routes>
               </Layout>
             </ProtectedRoute>

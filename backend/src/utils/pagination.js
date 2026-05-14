@@ -1,6 +1,6 @@
 export function getPaginationParams(query) {
   const page = Math.max(1, parseInt(query.page) || 1);
-  const limit = Math.min(100, Math.max(1, parseInt(query.limit) || 10));
+  const limit = Math.min(100, Math.max(1, parseInt(query.limit) || 20));
   const offset = (page - 1) * limit;
   const search = query.search || '';
   const sort = query.sort || '';
@@ -9,10 +9,14 @@ export function getPaginationParams(query) {
 }
 
 export function formatPaginatedResponse(rows, total, page, limit) {
+  const totalPages = Math.ceil(total / limit);
   return {
     data: rows,
-    total,
-    page,
-    totalPages: Math.ceil(total / limit)
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages
+    }
   };
 }

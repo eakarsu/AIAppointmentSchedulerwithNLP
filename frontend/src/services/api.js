@@ -16,6 +16,23 @@ async function handleResponse(response) {
   return response.json();
 }
 
+// Normalize paginated responses: supports both legacy {data, total, page, totalPages}
+// and new {data, pagination:{page, limit, total, totalPages}} shapes.
+export function normalizePaginated(res) {
+  if (!res) return { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } };
+  if (res.pagination) return res;
+  // Legacy shape
+  return {
+    data: res.data || [],
+    pagination: {
+      page: res.page || 1,
+      limit: res.limit || 20,
+      total: res.total || 0,
+      totalPages: res.totalPages || 0,
+    },
+  };
+}
+
 function buildQuery(params = {}) {
   const q = new URLSearchParams();
   if (params.page) q.set('page', params.page);
@@ -211,4 +228,86 @@ export const advancedAiApi = {
     fetch(`${API_BASE}/ai/allocations/${id}`, { method: 'DELETE', headers: getHeaders() }).then(handleResponse),
   resolveConflicts: (conflicts) =>
     fetch(`${API_BASE}/ai/conflicts/resolve`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ conflicts }) }).then(handleResponse)
+};
+
+// Unified Search
+export const searchApi = {
+  search: (q) =>
+    fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}`, { headers: getHeaders() }).then(handleResponse),
+};
+
+// Advanced AI — additional new features
+export const aiNewApi = {
+  // Follow-up generator
+  generateFollowUp: (appointmentId) =>
+    fetch(`${API_BASE}/ai/followup/${appointmentId}`, { method: 'POST', headers: getHeaders(), body: '{}' }).then(handleResponse),
+  listFollowUps: (params) =>
+    fetch(`${API_BASE}/ai/followup${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+
+  // AI appointment scoring
+  scoreAppointment: (appointmentId) =>
+    fetch(`${API_BASE}/ai/score/${appointmentId}`, { method: 'POST', headers: getHeaders(), body: '{}' }).then(handleResponse),
+
+  // Conflict resolutions history
+  getConflictResolutions: (params) =>
+    fetch(`${API_BASE}/ai/conflicts${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+
+  // Contact relationship intelligence
+  getOverdueContacts: (days = 30) =>
+    fetch(`${API_BASE}/contacts/overdue?days=${days}`, { headers: getHeaders() }).then(handleResponse),
+
+  // NLP log bulk delete
+  bulkDeleteNlpLogs: (ids) =>
+    fetch(`${API_BASE}/nlp/logs/bulk-delete`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ ids }) }).then(handleResponse),
+};
+
+// AI Extras (NEW audit-proposed features)
+export const aiExtrasApi = {
+  // 1. Time-zone Smart Rescheduling
+  tzReschedule: (payload) =>
+    fetch(`${API_BASE}/ai-extras/tz-reschedule`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) }).then(handleResponse),
+
+  // 2. Meeting Duration Predictor
+  durationPredict: (payload) =>
+    fetch(`${API_BASE}/ai-extras/duration-predict`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) }).then(handleResponse),
+  listDurationPredictions: (params) =>
+    fetch(`${API_BASE}/ai-extras/duration-predict${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+
+  // 3. Calendar Heatmap
+  heatmap: () =>
+    fetch(`${API_BASE}/ai-extras/heatmap`, { headers: getHeaders() }).then(handleResponse),
+
+  // 4. Meeting Transcript Summarizer
+  summarize: (payload) =>
+    fetch(`${API_BASE}/ai-extras/summarize`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) }).then(handleResponse),
+  listTranscripts: (params) =>
+    fetch(`${API_BASE}/ai-extras/summarize${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+
+  // 5. Attendee Sentiment Checker
+  sentiment: (payload) =>
+    fetch(`${API_BASE}/ai-extras/sentiment`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) }).then(handleResponse),
+  listFeedback: (params) =>
+    fetch(`${API_BASE}/ai-extras/sentiment${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+
+  // 6. Smart Recurring Pattern detection
+  recurringPatterns: () =>
+    fetch(`${API_BASE}/ai-extras/recurring-patterns`, { method: 'POST', headers: getHeaders(), body: '{}' }).then(handleResponse),
+
+  // 7. Meeting Value ROI
+  meetingROI: (payload) =>
+    fetch(`${API_BASE}/ai-extras/roi`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) }).then(handleResponse),
+  listROI: (params) =>
+    fetch(`${API_BASE}/ai-extras/roi${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+
+  // 8. Cross-Team Calendar Consensus
+  teamConsensus: (payload) =>
+    fetch(`${API_BASE}/ai-extras/team-consensus`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) }).then(handleResponse),
+
+  // Apply pass 5 backlog
+  cancellationPredict: (payload) =>
+    fetch(`${API_BASE}/ai-extras/cancellation-predict`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) }).then(handleResponse),
+  satisfactionScore: (payload) =>
+    fetch(`${API_BASE}/ai-extras/satisfaction-score`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) }).then(handleResponse),
+  optimalTimeSuggest: (payload) =>
+    fetch(`${API_BASE}/ai-extras/optimal-time-suggest`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) }).then(handleResponse),
 };

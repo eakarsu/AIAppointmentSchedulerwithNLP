@@ -216,6 +216,23 @@ export async function deleteNlpLog(req, res) {
   }
 }
 
+export async function bulkDeleteNlpLogs(req, res) {
+  const { ids } = req.body;
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'Array of IDs is required' });
+  }
+  try {
+    const result = await pool.query(
+      'DELETE FROM nlp_logs WHERE id = ANY($1) AND user_id = $2 RETURNING id',
+      [ids, req.user.id]
+    );
+    res.json({ message: `${result.rows.length} NLP logs deleted`, deleted: result.rows.map(r => r.id) });
+  } catch (error) {
+    console.error('Bulk delete NLP logs error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
 export async function getAIStatus(req, res) {
   res.json({
     configured: isAIConfigured(),

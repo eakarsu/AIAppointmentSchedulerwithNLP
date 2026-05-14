@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: '📊' },
+  { path: '/search', label: 'Search', icon: '🔍' },
   { path: '/appointments', label: 'Appointments', icon: '📅' },
   { path: '/contacts', label: 'Contacts', icon: '👥' },
   { path: '/categories', label: 'Categories', icon: '🏷️' },
@@ -18,7 +19,8 @@ const aiNavItems = [
   { path: '/ai/noshow-predictor', label: 'No-Show Predictor', icon: '📊' },
   { path: '/ai/reschedule-suggester', label: 'Reschedule Suggester', icon: '📅' },
   { path: '/ai/resource-allocator', label: 'Resource Allocator', icon: '⚡' },
-  { path: '/ai/conflict-resolver', label: 'Conflict Resolver', icon: '🔀' }
+  { path: '/ai/conflict-resolver', label: 'Conflict Resolver', icon: '🔀' },
+  { path: '/ai/extras', label: 'AI Extras', icon: '✨' }
 ];
 
 export default function Layout({ children }) {

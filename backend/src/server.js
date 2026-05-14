@@ -17,7 +17,11 @@ import nlpRoutes from './routes/nlp.js';
 import voiceRoutes from './routes/voice.js';
 import settingsRoutes from './routes/settings.js';
 import aiRoutes from './routes/ai.js';
+import aiExtrasRoutes from './routes/aiExtras.js';
+import aiBacklogRoutes from './routes/aiBacklog.js';
 import adminRoutes from './routes/admin.js';
+import analyticsRoutes from './routes/analytics.js';
+import searchRoutes from './routes/search.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -28,11 +32,28 @@ const app = express();
 const PORT = process.env.BACKEND_PORT || 3001;
 
 // Security headers
-app.use(helmet());
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+
+// CORS — env-driven origin list; defaults to localhost dev origins when not set
+const rawCorsOrigins = process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:5173';
+const corsOrigins = rawCorsOrigins
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+const corsOptions = {
+  origin: (origin, cb) => {
+    // Allow requests with no origin (curl, Postman, server-to-server)
+    if (!origin || corsOrigins.includes(origin) || corsOrigins.includes('*')) {
+      return cb(null, true);
+    }
+    return cb(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+};
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '1mb' }));
 app.use(sanitizeBody);
 
 // Request logging
@@ -47,6 +68,7 @@ app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
 app.use('/api/nlp', aiLimiter);
 app.use('/api/ai', aiLimiter);
+app.use('/api/ai-extras', aiLimiter);
 app.use('/api', generalLimiter);
 
 // Routes
@@ -59,7 +81,11 @@ app.use('/api/nlp', nlpRoutes);
 app.use('/api/voice', voiceRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/ai-extras', aiExtrasRoutes);
+app.use('/api/ai-extras', aiBacklogRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/search', searchRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -113,3 +139,21 @@ async function startServer() {
 }
 
 startServer();
+
+// BATCH_00_AUDIT_MOUNTS
+app.use('/api/calendar-sync', require('./routes/calendarSync'));
+app.use('/api/travel-time', require('./routes/travelTime'));
+app.use('/api/video-conf-bridge', require('./routes/videoConfBridge'));
+app.use('/api/payment-preauth', require('./routes/paymentPreauth'));
+app.use('/api/cancel-prevention', require('./routes/cancelPrevention'));
+
+// === Batch 00 Gaps & Frontend Mounts ===
+app.use('/api/gap-ai-optimal-time-suggestion-combining', require('./routes/gap_ai_optimal_time_suggestion_combining'));
+app.use('/api/gap-ai-cancellation-prediction', require('./routes/gap_ai_cancellation_prediction'));
+app.use('/api/gap-ai-customer-satisfaction-scoring-review', require('./routes/gap_ai_customer_satisfaction_scoring_review'));
+app.use('/api/gap-ai-agent-style-scheduling-assistant', require('./routes/gap_ai_agent_style_scheduling_assistant'));
+app.use('/api/gap-live-calendar-system-sync-outlook', require('./routes/gap_live_calendar_system_sync_outlook'));
+app.use('/api/gap-native-sms-email-delivery', require('./routes/gap_native_sms_email_delivery'));
+app.use('/api/gap-payment-collection-show-fee-charging', require('./routes/gap_payment_collection_show_fee_charging'));
+app.use('/api/gap-team-collaboration-features', require('./routes/gap_team_collaboration_features'));
+app.use('/api/gap-outbound-webhooks', require('./routes/gap_outbound_webhooks'));

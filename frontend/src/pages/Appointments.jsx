@@ -61,11 +61,12 @@ export default function Appointments() {
         contactsApi.getAll(),
         categoriesApi.getAll()
       ]);
-      // Handle paginated response
+      // Handle paginated response (supports both legacy and new {data, pagination} shape)
       if (aptsData.data) {
         setAppointments(aptsData.data);
-        setTotal(aptsData.total || 0);
-        setTotalPages(aptsData.totalPages || 1);
+        const pg = aptsData.pagination || {};
+        setTotal(pg.total ?? aptsData.total ?? 0);
+        setTotalPages(pg.totalPages ?? aptsData.totalPages ?? 1);
       } else {
         setAppointments(Array.isArray(aptsData) ? aptsData : []);
         setTotal(Array.isArray(aptsData) ? aptsData.length : 0);

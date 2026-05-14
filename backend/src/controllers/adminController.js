@@ -1,11 +1,24 @@
 import pool from '../config/database.js';
+import { getPaginationParams, formatPaginatedResponse } from '../utils/pagination.js';
 
 export async function getAllUsers(req, res) {
   try {
-    const result = await pool.query(
-      'SELECT id, email, name, role, email_verified, created_at, updated_at FROM users ORDER BY created_at DESC'
+    const { page, limit, offset, search } = getPaginationParams(req.query);
+    const params = [];
+    let whereClause = '';
+    if (search) {
+      params.push(`%${search}%`);
+      whereClause = `WHERE (name ILIKE $1 OR email ILIKE $1)`;
+    }
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM users ${whereClause}`, params
     );
-    res.json(result.rows);
+    const total = parseInt(countResult.rows[0].count);
+    const result = await pool.query(
+      `SELECT id, email, name, role, email_verified, created_at, updated_at FROM users ${whereClause} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
+    );
+    res.json(formatPaginatedResponse(result.rows, total, page, limit));
   } catch (error) {
     console.error('Get all users error:', error);
     res.status(500).json({ error: 'Server error' });

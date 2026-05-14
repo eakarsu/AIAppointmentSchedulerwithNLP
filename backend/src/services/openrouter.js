@@ -9,63 +9,90 @@ dotenv.config({ path: join(__dirname, '../../../.env') });
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const AI_MODEL = process.env.AI_MODEL || 'anthropic/claude-3-haiku';
+const AI_MODEL = process.env.AI_MODEL || 'anthropic/claude-3-5-sonnet-20241022';
 const AI_TEMPERATURE = parseFloat(process.env.AI_TEMPERATURE) || 0.3;
-const AI_MAX_TOKENS = parseInt(process.env.AI_MAX_TOKENS) || 10000;
+const AI_MAX_TOKENS = parseInt(process.env.AI_MAX_TOKENS) || 4000;
 
 // Check if AI is configured
 function isAIConfigured() {
   return OPENROUTER_API_KEY && OPENROUTER_API_KEY !== 'your_openrouter_api_key_here';
 }
 
-// Generic AI call function
+// 3-strategy JSON parser (handles markdown fences, whitespace, and partial wrapping)
+function parseAIJson(text) {
+  if (!text) return null;
+  // 1) Direct parse
+  try { return JSON.parse(text); } catch (_) {}
+  // 2) Strip markdown fences and retry
+  const stripped = text.replace(/```(?:json)?\n?/g, '').replace(/```/g, '').trim();
+  try { return JSON.parse(stripped); } catch (_) {}
+  // 3) Extract first {...} block
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start !== -1 && end !== -1) {
+    try { return JSON.parse(text.slice(start, end + 1)); } catch (_) {}
+  }
+  return null;
+}
+
+// Generic AI call function with exponential backoff retry (up to 3 attempts)
 async function callAI(systemPrompt, userMessage, options = {}) {
   if (!isAIConfigured()) {
     return null; // Return null to indicate AI is not available
   }
 
-  try {
-    const response = await fetch(OPENROUTER_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'AI Appointment Scheduler'
-      },
-      body: JSON.stringify({
-        model: options.model || AI_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userMessage }
-        ],
-        temperature: options.temperature || AI_TEMPERATURE,
-        max_tokens: options.maxTokens || AI_MAX_TOKENS
-      })
-    });
+  const MAX_RETRIES = 3;
+  const RETRY_DELAYS_MS = [1000, 2000, 4000];
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenRouter API error:', response.status, errorText);
-      return null;
-    }
-
-    const data = await response.json();
-    let content = data.choices[0].message.content;
-
-    // Strip markdown code block formatting (```json ... ``` or ``` ... ```)
-    content = content.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-
-    // Try to parse as JSON
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      return JSON.parse(content);
-    } catch {
-      return { text: content };
+      const response = await fetch(OPENROUTER_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'http://localhost:3000',
+          'X-Title': 'AI Appointment Scheduler'
+        },
+        body: JSON.stringify({
+          model: options.model || AI_MODEL,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ],
+          temperature: options.temperature !== undefined ? options.temperature : AI_TEMPERATURE,
+          max_tokens: options.maxTokens || AI_MAX_TOKENS
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        const isRetryable = response.status === 429 || response.status >= 500;
+        console.error(`OpenRouter API error (attempt ${attempt + 1}/${MAX_RETRIES}):`, response.status, errorText);
+
+        if (isRetryable && attempt < MAX_RETRIES - 1) {
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
+          continue;
+        }
+        throw new Error(`OpenRouter API error ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices[0].message.content;
+
+      const parsed = parseAIJson(content);
+      return parsed; // returns null if all strategies fail
+    } catch (error) {
+      console.error(`OpenRouter API error (attempt ${attempt + 1}/${MAX_RETRIES}):`, error.message);
+      if (attempt < MAX_RETRIES - 1) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
+      } else {
+        throw error; // Re-throw on final attempt
+      }
     }
-  } catch (error) {
-    console.error('OpenRouter API error:', error);
-    return null;
   }
+
+  return null;
 }
 
 // ============================================
@@ -724,10 +751,14 @@ Always respond with valid JSON only.`;
     return aiResult;
   }
 
-  // Fallback based on simple heuristics
-  const score = Math.random() * 0.3; // Low default risk
+  // Deterministic fallback based on lead time and contact history
+  const appointmentDate = new Date(appointment.start_time);
+  const now = new Date();
+  const leadTimeDays = Math.max(0, (appointmentDate - now) / (1000 * 60 * 60 * 24));
+  // Higher lead time slightly increases no-show risk; cap at 0.35
+  const score = Math.min(0.35, 0.05 + (leadTimeDays > 7 ? 0.15 : leadTimeDays > 3 ? 0.10 : 0.05));
   return {
-    prediction_score: score,
+    prediction_score: parseFloat(score.toFixed(2)),
     risk_level: score < 0.2 ? 'low' : score < 0.5 ? 'medium' : 'high',
     contributing_factors: [
       { factor: 'Historical Attendance', weight: 0.4, description: 'Based on past appointment attendance' },
