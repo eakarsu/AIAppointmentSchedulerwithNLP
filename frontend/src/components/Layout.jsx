@@ -11,7 +11,8 @@ const navItems = [
   { path: '/reminders', label: 'Reminders', icon: '🔔' },
   { path: '/nlp-logs', label: 'NLP Logs', icon: '🤖' },
   { path: '/voice-commands', label: 'Voice Commands', icon: '🎤' },
-  { path: '/settings', label: 'Settings', icon: '⚙️' }
+  { path: '/settings', label: 'Settings', icon: '⚙️' },
+  { path: '/custom-views', label: 'Scheduler Views', icon: '🗓️' }
 ];
 
 const aiNavItems = [

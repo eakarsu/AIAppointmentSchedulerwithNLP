@@ -21,6 +21,7 @@ import ResourceAllocator from './pages/ResourceAllocator';
 import ConflictResolver from './pages/ConflictResolver';
 import AIExtras from './pages/AIExtras';
 import Search from './pages/Search';
+import CustomViewsPage from './pages/CustomViewsPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -68,6 +69,7 @@ function App() {
                   <Route path="/ai/conflict-resolver" element={<ErrorBoundary><ConflictResolver /></ErrorBoundary>} />
                   <Route path="/ai/extras" element={<ErrorBoundary><AIExtras /></ErrorBoundary>} />
                   <Route path="/search" element={<ErrorBoundary><Search /></ErrorBoundary>} />
+                  <Route path="/custom-views" element={<ErrorBoundary><CustomViewsPage /></ErrorBoundary>} />
                 </Routes>
               </Layout>
             </ProtectedRoute>
