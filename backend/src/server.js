@@ -23,6 +23,7 @@ import adminRoutes from './routes/admin.js';
 import analyticsRoutes from './routes/analytics.js';
 import searchRoutes from './routes/search.js';
 import customViewsRoutes from './routes/customViews.js';
+import waitlistFillOptimizerRoutes from './routes/waitlistFillOptimizer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -88,6 +89,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/custom-views', customViewsRoutes);
+app.use('/api/waitlist-fill-optimizer', waitlistFillOptimizerRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

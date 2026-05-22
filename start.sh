@@ -25,8 +25,8 @@ PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Configuration (NOT using port 5000)
-BACKEND_PORT=3001
-FRONTEND_PORT=3000
+BACKEND_PORT=4101
+FRONTEND_PORT=4100
 DB_NAME="appointment_scheduler"
 DB_USER="postgres"
 DB_PASSWORD="postgres"
