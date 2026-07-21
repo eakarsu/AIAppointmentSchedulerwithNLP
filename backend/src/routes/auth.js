@@ -10,6 +10,7 @@ const router = Router();
 
 router.post('/login', validate('login'), login);
 router.post('/register', validate('register'), register);
+router.get('/me', authenticateToken, getProfile);
 router.get('/profile', authenticateToken, getProfile);
 router.get('/demo-credentials', getDemoCredentials);
 router.post('/forgot-password', validate('forgotPassword'), forgotPassword);

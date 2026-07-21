@@ -1,0 +1,2 @@
+import { readdir, readFile } from 'node:fs/promises';import { fileURLToPath } from 'node:url';import { dirname, join } from 'node:path';import pool from '../config/database.js';import { initializeDatabase } from '../models/schema.js';
+const here=dirname(fileURLToPath(import.meta.url));await initializeDatabase();const dir=join(here,'../../migrations');for(const file of (await readdir(dir)).filter((f)=>f.endsWith('.sql')).sort()){await pool.query(await readFile(join(dir,file),'utf8'));console.log(`Applied ${file}`);}await pool.end();

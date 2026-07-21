@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {normalizeIntent,assertTransition,reminderSchedule} from '../domain/bookingPolicy.js';
+test('normalizes UTC instants and rejects reverse ranges',()=>{const n=normalizeIntent({resourceId:'r1',startAt:'2026-07-18T10:00:00-04:00',endAt:'2026-07-18T11:00:00-04:00',timeZone:'America/New_York'});assert.equal(n.startAt,'2026-07-18T14:00:00.000Z');assert.throws(()=>normalizeIntent({...n,endAt:'2026-07-18T13:00:00Z'}),/after/);});
+test('confirmation is explicit and reminders are deterministic',()=>{assert.throws(()=>assertTransition('held','confirmed',{}),/Explicit/);assert.equal(reminderSchedule('2026-07-20T12:00:00Z').length,2);});

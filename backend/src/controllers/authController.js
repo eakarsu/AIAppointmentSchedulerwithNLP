@@ -22,6 +22,7 @@ export async function login(req, res) {
     }
 
     const user = result.rows[0];
+    if (!user.tenant_id) return res.status(403).json({ error: 'Account is not assigned to an organization' });
     const isValidPassword = await bcrypt.compare(password, user.password);
 
     if (!isValidPassword) {
@@ -36,7 +37,8 @@ export async function login(req, res) {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role
+        role: user.role,
+        tenant_id: user.tenant_id
       }
     });
   } catch (error) {
@@ -46,6 +48,9 @@ export async function login(req, res) {
 }
 
 export async function register(req, res) {
+  if (process.env.ALLOW_PUBLIC_REGISTRATION !== 'true') {
+    return res.status(403).json({ error: 'Public registration is disabled; request an organization invitation' });
+  }
   const { email, password, name } = req.body;
 
   if (!email || !password || !name) {
@@ -75,8 +80,8 @@ export async function register(req, res) {
     const verificationToken = uuidv4();
 
     const result = await pool.query(
-      'INSERT INTO users (email, password, name, verification_token) VALUES ($1, $2, $3, $4) RETURNING id, email, name, role',
-      [email, hashedPassword, name, verificationToken]
+      'INSERT INTO users (email, password, name, verification_token, tenant_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, name, role, tenant_id',
+      [email, hashedPassword, name, verificationToken, process.env.DEFAULT_TENANT_ID || 'default']
     );
 
     const user = result.rows[0];
@@ -87,9 +92,6 @@ export async function register(req, res) {
       [user.id]
     );
 
-    console.log(`\n📧 Email verification link for ${email}:`);
-    console.log(`   http://localhost:3000/verify-email/${verificationToken}\n`);
-
     const token = generateToken(user);
 
     res.status(201).json({
@@ -98,7 +100,8 @@ export async function register(req, res) {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role
+        role: user.role,
+        tenant_id: user.tenant_id
       }
     });
   } catch (error) {
@@ -110,8 +113,8 @@ export async function register(req, res) {
 export async function getProfile(req, res) {
   try {
     const result = await pool.query(
-      'SELECT id, email, name, role, email_verified, created_at FROM users WHERE id = $1',
-      [req.user.id]
+      'SELECT id, email, name, role, tenant_id, email_verified, created_at FROM users WHERE id = $1 AND tenant_id = $2',
+      [req.user.id, req.user.tenant_id]
     );
 
     if (result.rows.length === 0) {
@@ -126,9 +129,13 @@ export async function getProfile(req, res) {
 }
 
 export async function getDemoCredentials(req, res) {
+  if (process.env.NODE_ENV === 'production' || process.env.ENABLE_DEMO_CREDENTIALS !== 'true') {
+    return res.status(404).json({ error: 'Demo credentials are disabled' });
+  }
+  if (!process.env.DEMO_EMAIL || !process.env.DEMO_PASSWORD) return res.status(503).json({ error: 'Demo account is not configured' });
   res.json({
-    email: process.env.DEMO_EMAIL || 'demo@scheduler.com',
-    password: process.env.DEMO_PASSWORD || 'demo123456'
+    email: process.env.DEMO_EMAIL,
+    password: process.env.DEMO_PASSWORD
   });
 }
 
@@ -154,9 +161,6 @@ export async function forgotPassword(req, res) {
       'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE email = $3',
       [resetToken, expires, email]
     );
-
-    console.log(`\n🔑 Password reset link for ${email}:`);
-    console.log(`   http://localhost:3000/reset-password?token=${resetToken}\n`);
 
     res.json({ message: 'If an account exists with that email, a reset link has been sent.' });
   } catch (error) {

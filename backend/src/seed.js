@@ -1,5 +1,6 @@
 import pool from './config/database.js';
 import { initializeDatabase, dropAllTables } from './models/schema.js';
+if (process.env.CONFIRM_DEMO_SEED !== 'yes') throw new Error('Refusing destructive demo seed without CONFIRM_DEMO_SEED=yes');
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
