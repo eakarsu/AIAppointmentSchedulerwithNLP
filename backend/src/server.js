@@ -24,6 +24,7 @@ import searchRoutes from './routes/search.js';
 import customViewsRoutes from './routes/customViews.js';
 import waitlistFillOptimizerRoutes from './routes/waitlistFillOptimizer.js';
 import governedBookingsRoutes from './routes/governedBookings.js';
+import runtimeAiRoutes from './routes/runtimeAi.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -77,6 +78,7 @@ app.use('/api', generalLimiter);
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/runtime-ai', runtimeAiRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/categories', categoryRoutes);

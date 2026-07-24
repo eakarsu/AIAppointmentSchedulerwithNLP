@@ -37,16 +37,16 @@ function sanitizeObject(obj) {
 export const schemas = {
   // Auth
   login: Joi.object({
-    email: Joi.string().email().required(),
+    email: Joi.string().email({ tlds: { allow: false } }).required(),
     password: Joi.string().min(1).required(),
   }),
   register: Joi.object({
     name: Joi.string().min(1).max(255).required(),
-    email: Joi.string().email().required(),
+    email: Joi.string().email({ tlds: { allow: false } }).required(),
     password: Joi.string().min(8).required(),
   }),
   forgotPassword: Joi.object({
-    email: Joi.string().email().required(),
+    email: Joi.string().email({ tlds: { allow: false } }).required(),
   }),
   resetPassword: Joi.object({
     token: Joi.string().required(),
