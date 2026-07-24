@@ -129,7 +129,9 @@ export async function getProfile(req, res) {
 }
 
 export async function getDemoCredentials(req, res) {
-  if (process.env.NODE_ENV === 'production' || process.env.ENABLE_DEMO_CREDENTIALS !== 'true') {
+  const enabled = process.env.ENABLE_DEMO_CREDENTIAL_AUTOFILL !== 'false'
+    && process.env.ENABLE_DEMO_CREDENTIALS !== 'false';
+  if (process.env.NODE_ENV === 'production' || !enabled) {
     return res.status(404).json({ error: 'Demo credentials are disabled' });
   }
   if (!process.env.DEMO_EMAIL || !process.env.DEMO_PASSWORD) return res.status(503).json({ error: 'Demo account is not configured' });

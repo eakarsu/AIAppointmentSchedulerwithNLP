@@ -14,6 +14,11 @@ dotenv.config({ path: join(__dirname, '../../.env') });
 async function seedDatabase() {
   console.log('Starting database seeding...');
 
+  const demoEmail = process.env.DEMO_EMAIL || '';
+  const demoPassword = process.env.DEMO_PASSWORD || '';
+  if (!demoEmail.includes('@')) throw new Error('DEMO_EMAIL must be a valid email address');
+  if (demoPassword.length < 12) throw new Error('DEMO_PASSWORD must be at least 12 characters');
+
   try {
     // Drop and recreate tables
     await dropAllTables();
@@ -23,9 +28,9 @@ async function seedDatabase() {
 
     try {
       // Seed Users (15+ items)
-      const hashedPassword = await bcrypt.hash('demo123456', 10);
+      const hashedPassword = await bcrypt.hash(demoPassword, 10);
       const users = [
-        { email: 'demo@scheduler.com', password: hashedPassword, name: 'Demo User', role: 'admin' },
+        { email: demoEmail, password: hashedPassword, name: 'Demo User', role: 'admin' },
         { email: 'john.doe@email.com', password: hashedPassword, name: 'John Doe', role: 'user' },
         { email: 'jane.smith@email.com', password: hashedPassword, name: 'Jane Smith', role: 'user' },
         { email: 'mike.johnson@email.com', password: hashedPassword, name: 'Mike Johnson', role: 'user' },
@@ -415,9 +420,7 @@ async function seedDatabase() {
       console.log('  - 16 Reschedule Suggestions');
       console.log('  - 16 Resources');
       console.log('  - 16 Resource Allocations');
-      console.log('\nDemo login credentials:');
-      console.log('Email: demo@scheduler.com');
-      console.log('Password: demo123456');
+      console.log('\nDemo login user provisioned.');
 
     } finally {
       client.release();

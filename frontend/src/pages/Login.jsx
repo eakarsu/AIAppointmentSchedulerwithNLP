@@ -136,6 +136,7 @@ export default function Login() {
         {!isRegister && (
           <button
             onClick={handleDemoFill}
+            disabled={!demoCredentials}
             className="w-full mt-3 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors"
           >
             Fill Demo Credentials
