@@ -20,21 +20,21 @@ router.get('/', async (req, res) => {
         `SELECT id, title, start_time, end_time, location, status, 'appointment' as type
          FROM appointments
          WHERE user_id = $1 AND (title ILIKE $2 OR description ILIKE $2 OR location ILIKE $2)
-         ORDER BY start_time DESC LIMIT 10`,
+         ORDER BY start_time DESC LIMIT 25`,
         [userId, search]
       ),
       pool.query(
         `SELECT id, name, email, company, phone, 'contact' as type
          FROM contacts
          WHERE user_id = $1 AND (name ILIKE $2 OR email ILIKE $2 OR company ILIKE $2)
-         ORDER BY name LIMIT 10`,
+         ORDER BY name LIMIT 25`,
         [userId, search]
       ),
       pool.query(
         `SELECT id, name, color, description, 'category' as type
          FROM categories
          WHERE user_id = $1 AND (name ILIKE $2 OR description ILIKE $2)
-         ORDER BY name LIMIT 5`,
+         ORDER BY name LIMIT 25`,
         [userId, search]
       ),
     ]);

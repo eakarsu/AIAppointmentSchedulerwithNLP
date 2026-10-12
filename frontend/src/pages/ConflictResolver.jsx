@@ -20,8 +20,9 @@ export default function ConflictResolver() {
     setLoading(true);
     try {
       const data = await appointmentsApi.getUpcoming();
-      setAppointments(data);
-      detectConflicts(data);
+      const rows = Array.isArray(data) ? data : [];
+      setAppointments(rows);
+      detectConflicts(rows);
     } catch (err) {
       console.error('Failed to load data:', err);
       showError('Failed to load appointments');

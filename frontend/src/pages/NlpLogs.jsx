@@ -1,3 +1,4 @@
+import FormattedAIReport from "../components/FormattedAIReport";
 import React, { useState, useEffect, useCallback } from 'react';
 import { aiApi } from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -8,6 +9,7 @@ import Pagination from '../components/Pagination';
 import ExportButtons from '../components/ExportButtons';
 import { SkeletonTable } from '../components/Skeleton';
 import { exportToCSV } from '../utils/export';
+import NativeAIControls from '../components/NativeAIControls';
 
 export default function NlpLogs() {
   const { showSuccess, showError } = useToast();
@@ -28,7 +30,7 @@ export default function NlpLogs() {
   const [chatHistory, setChatHistory] = useState([]);
 
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(25);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
@@ -206,7 +208,7 @@ export default function NlpLogs() {
       </div>
 
       {/* Test AI Section */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
+      <NativeAIControls busy={testing} context={chatMode ? 'Scheduling assistant chat' : 'Appointment NLP parser'}><div className="bg-white rounded-xl shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="text-xl">{chatMode ? '💬' : '🧪'}</span>
@@ -229,7 +231,7 @@ export default function NlpLogs() {
           </div>
         )}
         <div className="flex gap-2">
-          <input type="text" value={testInput} onChange={(e) => setTestInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleTest()}
+          <input data-ai-field="testInput" type="text" value={testInput} onChange={(e) => setTestInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleTest()}
             placeholder={chatMode ? 'Ask me anything about scheduling...' : 'Try: "Book me Tuesday afternoon" or "Cancel my 3pm meeting"'}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
           <button onClick={handleTest} disabled={testing || !testInput.trim()} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
@@ -242,10 +244,10 @@ export default function NlpLogs() {
               <h3 className="font-medium text-gray-800">Parsed Result:</h3>
               {testResult.ai_powered && (<span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">AI Powered</span>)}
             </div>
-            <pre className="text-sm text-gray-700 overflow-x-auto whitespace-pre-wrap">{JSON.stringify(testResult, null, 2)}</pre>
+            <FormattedAIReport response={testResult} title="Parsed result" />
           </div>
         )}
-      </div>
+      </div></NativeAIControls>
 
       {/* Logs Table */}
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -300,7 +302,7 @@ export default function NlpLogs() {
             <div className="p-6 space-y-4">
               <div><label className="text-sm font-medium text-gray-500">Input Text</label><p className="text-gray-800 mt-1 p-3 bg-gray-50 rounded-lg">{selectedLog.input_text}</p></div>
               <div><label className="text-sm font-medium text-gray-500">Status</label><div className="mt-1"><span className={`px-2 py-1 text-xs rounded-full ${selectedLog.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{selectedLog.success ? 'Success' : 'Failed'}</span></div></div>
-              <div><label className="text-sm font-medium text-gray-500">Parsed Result</label><pre className="text-sm text-gray-800 mt-1 p-3 bg-gray-50 rounded-lg overflow-x-auto whitespace-pre-wrap">{JSON.stringify(selectedLog.parsed_result, null, 2)}</pre></div>
+              <div><label className="text-sm font-medium text-gray-500">Parsed Result</label><FormattedAIReport response={selectedLog.parsed_result} /></div>
               <div><label className="text-sm font-medium text-gray-500">Date</label><p className="text-gray-800 mt-1">{formatDate(selectedLog.created_at)}</p></div>
             </div>
             <div className="p-6 border-t flex justify-end gap-3">

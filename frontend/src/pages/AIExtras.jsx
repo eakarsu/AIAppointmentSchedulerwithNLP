@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { aiExtrasApi, appointmentsApi } from '../services/api';
+import NativeAIControls from '../components/NativeAIControls';
+import FormattedAIReport from '../components/FormattedAIReport';
 
 const tabs = [
   { id: 'tz', label: 'TZ Reschedule', icon: '🌍' },
@@ -27,11 +29,7 @@ function Card({ title, children }) {
 
 function ResultBlock({ data }) {
   if (!data) return null;
-  return (
-    <pre className="mt-4 bg-gray-900 text-green-200 p-4 rounded-lg overflow-x-auto text-xs">
-      {JSON.stringify(data, null, 2)}
-    </pre>
-  );
+  return <FormattedAIReport response={data} title="AI result" />;
 }
 
 export default function AIExtras() {
@@ -63,7 +61,7 @@ export default function AIExtras() {
   const [optLocation, setOptLocation] = useState('');
 
   useEffect(() => {
-    appointmentsApi.getUpcoming().then(setAppointments).catch(() => setAppointments([]));
+    appointmentsApi.getUpcoming().then((rows) => setAppointments(Array.isArray(rows) ? rows : [])).catch(() => setAppointments([]));
   }, []);
 
   const run = async (fn) => {
@@ -333,7 +331,9 @@ export default function AIExtras() {
         ))}
       </div>
 
-      {renderTab()}
+      <NativeAIControls busy={loading} context={`Appointment scheduler · ${tabs.find((item) => item.id === tab)?.label || 'AI extras'}`}>
+        {renderTab()}
+      </NativeAIControls>
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>

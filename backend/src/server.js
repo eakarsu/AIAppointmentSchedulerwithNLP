@@ -1,3 +1,8 @@
+import { authenticateToken as aiWorkspaceDependency1 } from "./middleware/auth.js";
+import aiWorkspaceDependency2 from "./config/database.js";
+import aiWorkspaceDependency3 from "../aiWorkspaceAdapters.cjs";
+import aiWorkspaceDependency4 from "../aiWorkspace.cjs";
+import { readFileSync as readAIWorkspaceFile } from 'node:fs';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -83,14 +88,12 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/reminders', reminderRoutes);
-if (process.env.ENABLE_EXPERIMENTAL_AI === 'true') app.use('/api/nlp', nlpRoutes);
-if (process.env.ENABLE_EXPERIMENTAL_AI === 'true') app.use('/api/voice', voiceRoutes);
+app.use('/api/nlp', nlpRoutes);
+app.use('/api/voice', voiceRoutes);
 app.use('/api/settings', settingsRoutes);
-if (process.env.ENABLE_EXPERIMENTAL_AI === 'true') {
-  app.use('/api/ai', aiRoutes);
-  app.use('/api/ai-extras', aiExtrasRoutes);
-  app.use('/api/ai-extras', aiBacklogRoutes);
-}
+app.use('/api/ai', aiRoutes);
+app.use('/api/ai-extras', aiExtrasRoutes);
+app.use('/api/ai-extras', aiBacklogRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/search', searchRoutes);
@@ -104,6 +107,15 @@ app.get('/api/health', (req, res) => {
 });
 
 // Error handling middleware
+
+// Advisory AI reports only; native execution and approval routes stay unchanged.
+const aiWorkspaceSupport = aiWorkspaceDependency3;
+const aiWorkspaceFeatures = JSON.parse(readAIWorkspaceFile(new URL("../aiWorkspaceFeatures.json", import.meta.url), 'utf8'));
+const aiWorkspaceDatabase = aiWorkspaceDependency2;
+app.use('/api/report-workspace', aiWorkspaceDependency4.createAIWorkspaceRouter({
+  pool: aiWorkspaceDatabase, authenticateToken: aiWorkspaceDependency1,
+  aiRateLimiter: aiWorkspaceSupport.createWorkspaceLimiter(), features: aiWorkspaceFeatures,
+}));
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(500).json({ error: 'Internal server error' });

@@ -1,3 +1,6 @@
+import NativeAIControls from "../components/NativeAIControls";
+import useNativeAIRequest from "../components/useNativeAIRequest";
+import FormattedAIReport from "../components/FormattedAIReport";
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -23,6 +26,8 @@ const aiFeatureCards = [
 ];
 
 export default function Dashboard() {
+  const nativeAIRequest = useNativeAIRequest();
+
   const { user } = useAuth();
   const navigate = useNavigate();
   const { showError } = useToast();
@@ -84,7 +89,7 @@ export default function Dashboard() {
   const loadUpcomingAppointments = async () => {
     try {
       const data = await appointmentsApi.getUpcoming();
-      setUpcomingAppointments(data.slice(0, 5));
+      setUpcomingAppointments(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to load appointments:', err);
     }
@@ -139,7 +144,7 @@ export default function Dashboard() {
 
     setLoading(true);
     try {
-      const result = await appointmentsApi.createFromNlp(text);
+      const result = await nativeAIRequest.run((signal) => appointmentsApi.createFromNlp(text, { signal }));
       setNlpResult(result);
 
       if (result.appointment) {
@@ -249,10 +254,10 @@ export default function Dashboard() {
       )}
 
       {/* NLP Input Section */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
+      <NativeAIControls busy={nativeAIRequest.busy} onCancel={nativeAIRequest.cancel} context="Appointment Schedulerwith NLP"><div className="bg-white rounded-xl shadow-sm p-6">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Quick Schedule with AI</h2>
         <div className="flex gap-2">
-          <input
+          <input data-ai-field="nlpInput"
             type="text"
             value={nlpInput}
             onChange={(e) => setNlpInput(e.target.value)}
@@ -305,12 +310,12 @@ export default function Dashboard() {
             ) : (
               <div>
                 <p className="text-blue-700 font-medium">Parsed result:</p>
-                <pre className="text-sm text-gray-600 mt-1">{JSON.stringify(nlpResult.parsed || nlpResult, null, 2)}</pre>
+                <FormattedAIReport response={nlpResult.parsed || nlpResult} />
               </div>
             )}
           </div>
         )}
-      </div>
+      </div></NativeAIControls>
 
       {/* AI Suggestions */}
       {suggestions && suggestions.suggested_times && (

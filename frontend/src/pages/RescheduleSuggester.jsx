@@ -24,7 +24,7 @@ export default function RescheduleSuggester() {
   const [selectedDetail, setSelectedDetail] = useState(null);
 
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(25);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');

@@ -33,7 +33,7 @@ export default function ResourceAllocator() {
   });
 
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(25);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
@@ -46,11 +46,11 @@ export default function ResourceAllocator() {
     setLoading(true);
     try {
       const [resourcesData, allocationsData, appointmentsData] = await Promise.all([
-        advancedAiApi.getResources(),
+        advancedAiApi.getResources({ limit: 25 }),
         advancedAiApi.getAllocations({ page, limit, search, sort, order }),
         appointmentsApi.getUpcoming()
       ]);
-      setResources(resourcesData);
+      setResources(Array.isArray(resourcesData?.data) ? resourcesData.data : []);
       if (allocationsData.data) {
         setAllocations(allocationsData.data);
         setTotal(allocationsData.total || 0);
@@ -61,7 +61,7 @@ export default function ResourceAllocator() {
         setTotal(list.length);
         setTotalPages(1);
       }
-      setAppointments(appointmentsData);
+      setAppointments(Array.isArray(appointmentsData) ? appointmentsData : []);
     } catch (err) {
       console.error('Failed to load data:', err);
       showError('Failed to load data');

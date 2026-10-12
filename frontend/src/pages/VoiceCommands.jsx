@@ -1,3 +1,4 @@
+import FormattedAIReport from "../components/FormattedAIReport";
 import React, { useState, useEffect, useCallback } from 'react';
 import { voiceApi } from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -24,7 +25,7 @@ export default function VoiceCommands() {
   const [recognition, setRecognition] = useState(null);
 
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(25);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
@@ -167,7 +168,7 @@ export default function VoiceCommands() {
               {result.error ? (<p className="text-red-700">{result.error}</p>) : (
                 <div>
                   <p className="text-green-700 font-medium">{result.actionTaken}</p>
-                  {result.parsed && (<pre className="text-sm text-gray-600 mt-2 overflow-x-auto">{JSON.stringify(result.parsed, null, 2)}</pre>)}
+                  {result.parsed && (<FormattedAIReport response={result.parsed} />)}
                 </div>
               )}
             </div>

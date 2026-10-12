@@ -19,19 +19,17 @@ async function handleResponse(response) {
 // Normalize paginated responses: supports both legacy {data, total, page, totalPages}
 // and new {data, pagination:{page, limit, total, totalPages}} shapes.
 export function normalizePaginated(res) {
-  if (!res) return { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } };
-  if (res.pagination) return res;
-  // Legacy shape
-  return {
-    data: res.data || [],
-    pagination: {
-      page: res.page || 1,
-      limit: res.limit || 20,
-      total: res.total || 0,
-      totalPages: res.totalPages || 0,
-    },
-  };
+  const data = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+  const pagination = res?.pagination || {};
+  const total = Number(pagination.total ?? res?.total ?? data.length);
+  const limit = Number(pagination.limit ?? res?.limit ?? 25);
+  const page = Number(pagination.page ?? res?.page ?? 1);
+  const totalPages = Number(pagination.totalPages ?? res?.totalPages ?? Math.ceil(total / limit));
+  return { data, total, totalPages, page, limit, pagination: { page, limit, total, totalPages } };
 }
+
+const handlePaginatedResponse = (response) => handleResponse(response).then(normalizePaginated);
+const responseRows = (response) => handleResponse(response).then((value) => normalizePaginated(value).data);
 
 function buildQuery(params = {}) {
   const q = new URLSearchParams();
@@ -65,15 +63,15 @@ export const authApi = {
 // Appointments
 export const appointmentsApi = {
   getAll: (params) =>
-    fetch(`${API_BASE}/appointments${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/appointments${buildQuery(params)}`, { headers: getHeaders() }).then(handlePaginatedResponse),
   getById: (id) =>
     fetch(`${API_BASE}/appointments/${id}`, { headers: getHeaders() }).then(handleResponse),
   getUpcoming: () =>
-    fetch(`${API_BASE}/appointments/upcoming`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/appointments/upcoming`, { headers: getHeaders() }).then(responseRows),
   create: (data) =>
     fetch(`${API_BASE}/appointments`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) }).then(handleResponse),
-  createFromNlp: (input) =>
-    fetch(`${API_BASE}/appointments/nlp`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ input }) }).then(handleResponse),
+  createFromNlp: (input, nativeRequestOptions = {}) =>
+    fetch(`${API_BASE}/appointments/nlp`, { ...({ method: 'POST', headers: getHeaders(), body: JSON.stringify({ input }) }), ...(nativeRequestOptions) }).then(handleResponse),
   update: (id, data) =>
     fetch(`${API_BASE}/appointments/${id}`, { method: 'PUT', headers: getHeaders(), body: JSON.stringify(data) }).then(handleResponse),
   delete: (id) =>
@@ -87,7 +85,7 @@ export const appointmentsApi = {
 // Contacts
 export const contactsApi = {
   getAll: (params) =>
-    fetch(`${API_BASE}/contacts${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/contacts${buildQuery(params)}`, { headers: getHeaders() }).then(handlePaginatedResponse),
   getById: (id) =>
     fetch(`${API_BASE}/contacts/${id}`, { headers: getHeaders() }).then(handleResponse),
   create: (data) =>
@@ -103,7 +101,7 @@ export const contactsApi = {
 // Categories
 export const categoriesApi = {
   getAll: (params) =>
-    fetch(`${API_BASE}/categories${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/categories${buildQuery(params)}`, { headers: getHeaders() }).then(handlePaginatedResponse),
   getById: (id) =>
     fetch(`${API_BASE}/categories/${id}`, { headers: getHeaders() }).then(handleResponse),
   create: (data) =>
@@ -119,7 +117,7 @@ export const categoriesApi = {
 // Reminders
 export const remindersApi = {
   getAll: (params) =>
-    fetch(`${API_BASE}/reminders${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/reminders${buildQuery(params)}`, { headers: getHeaders() }).then(handlePaginatedResponse),
   getById: (id) =>
     fetch(`${API_BASE}/reminders/${id}`, { headers: getHeaders() }).then(handleResponse),
   create: (data) =>
@@ -155,7 +153,7 @@ export const aiApi = {
   generateTitle: (details) =>
     fetch(`${API_BASE}/nlp/generate-title`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ details }) }).then(handleResponse),
   getLogs: (params) =>
-    fetch(`${API_BASE}/nlp/logs${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/nlp/logs${buildQuery(params)}`, { headers: getHeaders() }).then(handlePaginatedResponse),
   getLogById: (id) =>
     fetch(`${API_BASE}/nlp/logs/${id}`, { headers: getHeaders() }).then(handleResponse),
   deleteLog: (id) =>
@@ -167,7 +165,7 @@ export const nlpApi = aiApi;
 // Voice Commands
 export const voiceApi = {
   getAll: (params) =>
-    fetch(`${API_BASE}/voice${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/voice${buildQuery(params)}`, { headers: getHeaders() }).then(handlePaginatedResponse),
   getById: (id) =>
     fetch(`${API_BASE}/voice/${id}`, { headers: getHeaders() }).then(handleResponse),
   process: (transcript) =>
@@ -189,7 +187,7 @@ export const advancedAiApi = {
   getSummary: () =>
     fetch(`${API_BASE}/ai/summary`, { headers: getHeaders() }).then(handleResponse),
   getBufferAnalyses: (params) =>
-    fetch(`${API_BASE}/ai/buffer${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/ai/buffer${buildQuery(params)}`, { headers: getHeaders() }).then(handlePaginatedResponse),
   analyzeBuffer: (appointment_id) =>
     fetch(`${API_BASE}/ai/buffer/analyze`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ appointment_id }) }).then(handleResponse),
   applyBufferSuggestion: (id) =>
@@ -197,7 +195,7 @@ export const advancedAiApi = {
   deleteBufferAnalysis: (id) =>
     fetch(`${API_BASE}/ai/buffer/${id}`, { method: 'DELETE', headers: getHeaders() }).then(handleResponse),
   getNoShowPredictions: (params) =>
-    fetch(`${API_BASE}/ai/noshow${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/ai/noshow${buildQuery(params)}`, { headers: getHeaders() }).then(handlePaginatedResponse),
   predictNoShow: (appointment_id) =>
     fetch(`${API_BASE}/ai/noshow/predict`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ appointment_id }) }).then(handleResponse),
   updateNoShowOutcome: (id, actual_outcome) =>
@@ -205,7 +203,7 @@ export const advancedAiApi = {
   deleteNoShowPrediction: (id) =>
     fetch(`${API_BASE}/ai/noshow/${id}`, { method: 'DELETE', headers: getHeaders() }).then(handleResponse),
   getRescheduleSuggestions: (params) =>
-    fetch(`${API_BASE}/ai/reschedule${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/ai/reschedule${buildQuery(params)}`, { headers: getHeaders() }).then(handlePaginatedResponse),
   suggestReschedule: (appointment_id, reason) =>
     fetch(`${API_BASE}/ai/reschedule/suggest`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ appointment_id, reason }) }).then(handleResponse),
   acceptRescheduleSuggestion: (id, suggestion_index) =>
@@ -213,7 +211,7 @@ export const advancedAiApi = {
   deleteRescheduleSuggestion: (id) =>
     fetch(`${API_BASE}/ai/reschedule/${id}`, { method: 'DELETE', headers: getHeaders() }).then(handleResponse),
   getResources: (params) =>
-    fetch(`${API_BASE}/ai/resources${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/ai/resources${buildQuery(params)}`, { headers: getHeaders() }).then(handlePaginatedResponse),
   createResource: (data) =>
     fetch(`${API_BASE}/ai/resources`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) }).then(handleResponse),
   updateResource: (id, data) =>
@@ -221,7 +219,7 @@ export const advancedAiApi = {
   deleteResource: (id) =>
     fetch(`${API_BASE}/ai/resources/${id}`, { method: 'DELETE', headers: getHeaders() }).then(handleResponse),
   getAllocations: (params) =>
-    fetch(`${API_BASE}/ai/allocations${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/ai/allocations${buildQuery(params)}`, { headers: getHeaders() }).then(handlePaginatedResponse),
   optimizeAllocations: (appointment_ids, constraints) =>
     fetch(`${API_BASE}/ai/allocations/optimize`, { method: 'POST', headers: getHeaders(), body: JSON.stringify({ appointment_ids, constraints }) }).then(handleResponse),
   deleteAllocation: (id) =>
@@ -242,7 +240,7 @@ export const aiNewApi = {
   generateFollowUp: (appointmentId) =>
     fetch(`${API_BASE}/ai/followup/${appointmentId}`, { method: 'POST', headers: getHeaders(), body: '{}' }).then(handleResponse),
   listFollowUps: (params) =>
-    fetch(`${API_BASE}/ai/followup${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/ai/followup${buildQuery(params)}`, { headers: getHeaders() }).then(handlePaginatedResponse),
 
   // AI appointment scoring
   scoreAppointment: (appointmentId) =>
@@ -250,7 +248,7 @@ export const aiNewApi = {
 
   // Conflict resolutions history
   getConflictResolutions: (params) =>
-    fetch(`${API_BASE}/ai/conflicts${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/ai/conflicts${buildQuery(params)}`, { headers: getHeaders() }).then(handlePaginatedResponse),
 
   // Contact relationship intelligence
   getOverdueContacts: (days = 30) =>
@@ -271,7 +269,7 @@ export const aiExtrasApi = {
   durationPredict: (payload) =>
     fetch(`${API_BASE}/ai-extras/duration-predict`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) }).then(handleResponse),
   listDurationPredictions: (params) =>
-    fetch(`${API_BASE}/ai-extras/duration-predict${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/ai-extras/duration-predict${buildQuery(params)}`, { headers: getHeaders() }).then(handlePaginatedResponse),
 
   // 3. Calendar Heatmap
   heatmap: () =>
@@ -281,13 +279,13 @@ export const aiExtrasApi = {
   summarize: (payload) =>
     fetch(`${API_BASE}/ai-extras/summarize`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) }).then(handleResponse),
   listTranscripts: (params) =>
-    fetch(`${API_BASE}/ai-extras/summarize${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/ai-extras/summarize${buildQuery(params)}`, { headers: getHeaders() }).then(handlePaginatedResponse),
 
   // 5. Attendee Sentiment Checker
   sentiment: (payload) =>
     fetch(`${API_BASE}/ai-extras/sentiment`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) }).then(handleResponse),
   listFeedback: (params) =>
-    fetch(`${API_BASE}/ai-extras/sentiment${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/ai-extras/sentiment${buildQuery(params)}`, { headers: getHeaders() }).then(handlePaginatedResponse),
 
   // 6. Smart Recurring Pattern detection
   recurringPatterns: () =>
@@ -297,7 +295,7 @@ export const aiExtrasApi = {
   meetingROI: (payload) =>
     fetch(`${API_BASE}/ai-extras/roi`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) }).then(handleResponse),
   listROI: (params) =>
-    fetch(`${API_BASE}/ai-extras/roi${buildQuery(params)}`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${API_BASE}/ai-extras/roi${buildQuery(params)}`, { headers: getHeaders() }).then(handlePaginatedResponse),
 
   // 8. Cross-Team Calendar Consensus
   teamConsensus: (payload) =>

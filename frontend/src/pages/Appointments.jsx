@@ -10,6 +10,7 @@ import ExportButtons from '../components/ExportButtons';
 import BulkActionBar from '../components/BulkActionBar';
 import { SkeletonTable } from '../components/Skeleton';
 import { exportToCSV } from '../utils/export';
+import NativeAIControls from '../components/NativeAIControls';
 
 export default function Appointments() {
   const { showSuccess, showError } = useToast();
@@ -35,7 +36,7 @@ export default function Appointments() {
 
   // Pagination, search, sort state
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(25);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
@@ -384,13 +385,14 @@ export default function Appointments() {
       </div>
 
       {/* AI Quick Create */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+      <NativeAIControls busy={nlpLoading} context="Appointment quick-create"><div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xl">🤖</span>
           <h3 className="font-medium text-gray-800">AI Quick Create</h3>
         </div>
         <div className="flex gap-2">
           <input
+            data-ai-field="appointment_request"
             type="text"
             value={nlpInput}
             onChange={(e) => setNlpInput(e.target.value)}
@@ -406,7 +408,7 @@ export default function Appointments() {
             {nlpLoading ? 'Creating...' : 'Create with AI'}
           </button>
         </div>
-      </div>
+      </div></NativeAIControls>
 
       {/* Search Bar */}
       <SearchBar value={search} onChange={handleSearchChange} placeholder="Search appointments..." />
@@ -540,6 +542,12 @@ export default function Appointments() {
               )}
             </div>
             <div className="p-6 border-t flex justify-end gap-3">
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
               <button
                 onClick={() => handleDelete(selectedAppointment)}
                 className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"

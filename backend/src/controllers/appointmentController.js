@@ -395,7 +395,7 @@ export async function getUpcoming(req, res) {
        LEFT JOIN contacts c ON a.contact_id = c.id
        WHERE a.user_id = $1 AND a.start_time > NOW()
        ORDER BY a.start_time ASC
-       LIMIT 10`,
+       LIMIT 25`,
       [req.user.id]
     );
     res.json(result.rows);

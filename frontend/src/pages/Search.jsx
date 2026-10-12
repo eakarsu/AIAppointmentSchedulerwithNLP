@@ -23,7 +23,7 @@ export default function Search() {
     setError(null);
     try {
       const data = await searchApi.search(q);
-      setResults(data);
+      setResults({ ...data, results: Object.fromEntries(['appointments', 'contacts', 'categories'].map((key) => [key, Array.isArray(data?.results?.[key]) ? data.results[key] : []])) });
     } catch (e) {
       setError(e.message);
     } finally {

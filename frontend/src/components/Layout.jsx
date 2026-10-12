@@ -1,3 +1,4 @@
+import AIReportLibrary from "./AIReportLibrary";
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -108,6 +109,10 @@ export default function Layout({ children }) {
             </ul>
           </div>
         </nav>
+
+        <div className="absolute bottom-24 left-0 right-0 bg-white">
+          <AIReportLibrary />
+        </div>
 
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white">
           <div className="flex items-center justify-between">

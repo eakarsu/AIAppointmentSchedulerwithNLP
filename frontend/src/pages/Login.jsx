@@ -11,6 +11,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [demoCredentials, setDemoCredentials] = useState(null);
+  const [demoUnavailable, setDemoUnavailable] = useState(false);
 
   const { login, register, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -25,17 +26,26 @@ export default function Login() {
   const loadDemoCredentials = async () => {
     try {
       const creds = await authApi.getDemoCredentials();
-      setDemoCredentials(creds);
+      if (creds?.email && creds?.password) setDemoCredentials(creds);
+      else setDemoUnavailable(true);
     } catch (err) {
-      console.error('Failed to load demo credentials:', err);
+      setDemoUnavailable(true);
     }
   };
 
-  const handleDemoFill = () => {
-    if (demoCredentials) {
-      setEmail(demoCredentials.email);
-      setPassword(demoCredentials.password);
-      setError('');
+  const handleDemoLogin = async () => {
+    if (!demoCredentials || loading) return;
+    setEmail(demoCredentials.email);
+    setPassword(demoCredentials.password);
+    setError('');
+    setLoading(true);
+    try {
+      await login(demoCredentials.email, demoCredentials.password);
+      navigate('/');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -135,13 +145,15 @@ export default function Login() {
 
         {!isRegister && (
           <button
-            onClick={handleDemoFill}
-            disabled={!demoCredentials}
-            className="w-full mt-3 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors"
+            type="button"
+            onClick={handleDemoLogin}
+            disabled={!demoCredentials || loading}
+            className="w-full mt-3 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Auto Fill Demo Credentials
+            {loading ? 'Logging in…' : 'Log In as Demo'}
           </button>
         )}
+        {!isRegister && demoUnavailable && <p role="status" className="mt-2 text-sm text-gray-600">Demo login is unavailable because the demo account is not configured or access is disabled.</p>}
 
         <div className="mt-6 text-center space-y-2">
           {!isRegister && (
