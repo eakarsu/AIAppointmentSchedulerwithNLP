@@ -10,6 +10,8 @@ export default function Login() {
   const [isRegister, setIsRegister] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const demoEmail = import.meta.env.VITE_DEMO_EMAIL || '';
+  const demoPassword = import.meta.env.VITE_DEMO_PASSWORD || '';
   const [demoCredentials, setDemoCredentials] = useState(null);
   const [demoUnavailable, setDemoUnavailable] = useState(false);
 
@@ -47,6 +49,16 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fillDemoCredentials = async () => {
+    if (demoEmail && demoPassword) { setEmail(demoEmail); setPassword(demoPassword); setError(''); return; }
+    try {
+      const res = await fetch('/api/auth/demo-credentials', { cache: 'no-store' });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.email && data?.password) { setEmail(data.email); setPassword(data.password); setError(''); return; }
+    } catch {}
+    setError('Demo credentials are not configured for this environment.');
   };
 
   const handleSubmit = async (e) => {
@@ -151,6 +163,16 @@ export default function Login() {
             className="w-full mt-3 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Logging in…' : 'Log In as Demo'}
+          </button>
+        )}
+        {!isRegister && (
+          <button
+            type="button"
+            aria-label="Fill demo credentials"
+            onClick={fillDemoCredentials}
+            className="w-full mt-3 py-3 bg-white text-blue-600 border border-blue-600 rounded-lg font-medium hover:bg-blue-50 transition-colors"
+          >
+            Fill demo credentials
           </button>
         )}
         {!isRegister && demoUnavailable && <p role="status" className="mt-2 text-sm text-gray-600">Demo login is unavailable because the demo account is not configured or access is disabled.</p>}

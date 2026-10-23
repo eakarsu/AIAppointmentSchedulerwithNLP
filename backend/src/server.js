@@ -30,6 +30,7 @@ import customViewsRoutes from './routes/customViews.js';
 import waitlistFillOptimizerRoutes from './routes/waitlistFillOptimizer.js';
 import governedBookingsRoutes from './routes/governedBookings.js';
 import runtimeAiRoutes from './routes/runtimeAi.js';
+import { createFeaturePackRouter } from './featurepack.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -100,6 +101,9 @@ app.use('/api/search', searchRoutes);
 app.use('/api/custom-views', customViewsRoutes);
 app.use('/api/waitlist-fill-optimizer', waitlistFillOptimizerRoutes);
 app.use('/api/governed-bookings', governedBookingsRoutes);
+app.use('/api/featurepack', aiWorkspaceDependency1, createFeaturePackRouter({
+  listRecords: async (req) => (await aiWorkspaceDependency2.query('SELECT * FROM appointments WHERE user_id = $1 ORDER BY start_time DESC LIMIT 200', [req.user.id])).rows,
+}));
 
 // Health check
 app.get('/api/health', (req, res) => {
